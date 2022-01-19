@@ -114,8 +114,11 @@ function getMediaUrlAtCurrentCursor(editor: vscode.TextEditor): string {
 	const document = editor.document;
 	const wordUnderCursorRange = document.getWordRangeAtPosition(editor.selection.active, /\S+/);
 	const currentWord = document.getText(wordUnderCursorRange).trim();
-	if (currentWord.match(RE_MEDIA)) {
-		return currentWord;
+	if (!currentWord.includes('\n') && currentWord.length < 500) {
+		const match = currentWord.match(RE_MEDIA);
+		if (match) {
+			return match[1];
+		}
 	}
 	const lineNumber = editor.selection.active.line;
 	const line = document.lineAt(lineNumber);
