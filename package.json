@@ -2,7 +2,7 @@
 	"name": "play-media-url",
 	"displayName": "Play Media URL",
 	"description": "Play media URL under the cursor or in the current line",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"publisher": "trung-phan",
 	"engines": {
 		"vscode": "^1.61.0"
@@ -31,7 +31,7 @@
 				},
 				"playMediaUrl.playMediaCmdPattern": {
 					"type": "string",
-					"default": "ffplay -autoexit -nodisp ${url}",
+					"default": "ffplay -autoexit -nodisp ${ffplay-ss} ${ffplay-t} ${url}",
 					"description": "Command to play a media URL"
 				}
 			}
