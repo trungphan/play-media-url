@@ -12,6 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {}
 
 const RE_MEDIA = /((\S+\.(flac|mp3|wav|mp4|m4a|mkv|wma|aac|mov))(\{([\d.:,]+)\})?|https?:\/\/\S+)/;
+const RE_WIN_FULL_PATH_START = /^[a-zA-Z]:/;
 
 let playerRunning = false;
 
@@ -33,9 +34,12 @@ async function findAndPlayMediaUrl() {
             return;
         }
         const params = buildCmdParams(mediaUrlInfo.text, mediaUrlInfo.selectionStart, mediaUrlInfo.selectionEnd);
+        const workspaceFolderUri = vscode.workspace.workspaceFolders?.[0]?.uri || parseUri('');
         for (const mediaFolder of mediaFolders) {
-            const folderUri = parseUri(mediaFolder);
-            const mediaUri = vscode.Uri.joinPath(folderUri, params.fileName);
+            const isAbsolutePath = mediaFolder.startsWith('/') || mediaFolder.match(RE_WIN_FULL_PATH_START);
+            const mediaUri = isAbsolutePath
+                ? vscode.Uri.joinPath(parseUri(mediaFolder), params.fileName)
+                : vscode.Uri.joinPath(workspaceFolderUri, mediaFolder, params.fileName);
             try {
                 await vscode.workspace.fs.stat(mediaUri);
             }

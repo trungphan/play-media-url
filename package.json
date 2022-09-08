@@ -2,7 +2,7 @@
 	"name": "play-media-url",
 	"displayName": "Play Media URL",
 	"description": "Play media URL under the cursor or in the current line",
-	"version": "1.0.5",
+	"version": "1.0.6",
 	"publisher": "trung-phan",
 	"engines": {
 		"vscode": "^1.61.0"
