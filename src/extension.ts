@@ -1,17 +1,16 @@
-import * as vscode from 'vscode';
 import * as cp from 'child_process';
+import * as vscode from 'vscode';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-	const disposable = vscode.commands.registerCommand('play-media-url.playMedia', findAndPlayMediaUrl);
-	context.subscriptions.push(disposable);
+    const disposable = vscode.commands.registerCommand('play-media-url.playMedia', findAndPlayMediaUrl);
+    context.subscriptions.push(disposable);
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {}
 
-const RE_MEDIA = /((\S+\.(flac|mp3|wav|mp4|m4a|mkv|wma|aac|mov))(\{([\d.:,]+)\})?|https?:\/\/\S+)/;
 const RE_WIN_FULL_PATH_START = /^[a-zA-Z]:/;
 
 let playerRunning = false;
@@ -56,6 +55,7 @@ async function findAndPlayMediaUrl() {
 }
 
 function buildCmdParams(rawName: string, selectionStart: number, selectionEnd: number): {fileName: string, ffplaySs?: string, ffplayT?: string} {
+    const RE_MEDIA = /((\S+\.(flac|mp3|wav|mp4|m4a|mkv|wma|aac|mov)(?!")|"[^"]+\.(flac|mp3|wav|mp4|m4a|mkv|wma|aac|mov)")(\{([\d.:,]+)\})?|https?:\/\/\S+)/;
     const match = rawName.match(RE_MEDIA);
     if (match && match[5]) {
         const reSS = /(\d+:)?(\d+:)?(\d+)(\.(\d{1,3}))?/g;
@@ -99,13 +99,17 @@ function buildCmdParams(rawName: string, selectionStart: number, selectionEnd: n
         const fromMillis = millisList[indexStart];
         const toMillis = millisList[indexEnd];
         const durationMillis = toMillis - fromMillis;
+        let fileName = match[2];
+        if (fileName.startsWith('"') && fileName.endsWith('"')) {
+            fileName = fileName.substring(1, fileName.length - 1);
+        }
         return {
-            fileName: match[2],
+            fileName,
             ffplaySs: `-ss ${ssList[indexStart]}`,
             ffplayT: durationMillis > 0 ? `-t ${(durationMillis / 1000).toFixed(3)}` : '',
         };
     }
-    return { fileName: rawName };
+    return { fileName: rawName.startsWith('"') && rawName.endsWith('"') ? rawName.substring(1, rawName.length - 1) : rawName };
 }
 
 async function playMediaUrl(fileOrUrl: string, params: {fileName?: string, ffplaySs?: string, ffplayT?: string}) {
@@ -126,47 +130,40 @@ async function playMediaUrl(fileOrUrl: string, params: {fileName?: string, ffpla
 }
 
 async function execShell(cmd: string): Promise<any> {
-	return await new Promise((resolve, reject) => {
-		cp.exec(cmd, (err, out) => {
-			if (err) {
-				console.error(err);
-			}
-			resolve(1);
-		});
-	});
+    return await new Promise((resolve, reject) => {
+        cp.exec(cmd, (err, out) => {
+            if (err) {
+                console.error(err);
+            }
+            resolve(1);
+        });
+    });
 }
 
 function parseUri(path: string): vscode.Uri {
-	try {
-		return vscode.Uri.file(path);
-	} catch (error) {
-		return vscode.Uri.parse(path);
-	}
+    try {
+        return vscode.Uri.file(path);
+    } catch (error) {
+        return vscode.Uri.parse(path);
+    }
 }
 
 function getMediaUrlAtCurrentCursor(editor: vscode.TextEditor): {text: string, selectionStart: number, selectionEnd: number} {
-	const document = editor.document;
-    const start = editor.selection.start.character;
-    const end = editor.selection.end.character;
-    const wordUnderCursorRange = document.getWordRangeAtPosition(editor.selection.active, /\S+/);
-    const currentWord = document.getText(wordUnderCursorRange).trim();
-    const lineNumber = editor.selection.active.line;
-    const allInSameLine = editor.selection.start.line === lineNumber && editor.selection.end.line === lineNumber && (!wordUnderCursorRange || wordUnderCursorRange.start.line === editor.selection.start.line);
-    if (allInSameLine && currentWord.length < 500) {
-        const match = currentWord.match(RE_MEDIA);
-        if (match) {
-            const offset = wordUnderCursorRange?.start.character || 0;
-            const selectionStart = allInSameLine ? start - offset - (match.index || 0) : 0;
-            const selectionEnd = allInSameLine ? end - offset - (match.index || 0) : 0;
-            return { text: match[1], selectionStart, selectionEnd };
-        }
+    const RE_MEDIA = /((\S+\.(flac|mp3|wav|mp4|m4a|mkv|wma|aac|mov)(?!")|"[^"]+\.(flac|mp3|wav|mp4|m4a|mkv|wma|aac|mov)")(\{([\d.:,]+)\})?|https?:\/\/\S+)/g;
+    if (editor.selection.start.line === editor.selection.end.line) {
+        const line = editor.document.lineAt(editor.selection.active.line).text;
+        while (true) {
+            const match = RE_MEDIA.exec(line);
+            if (!match) {
+                break;
+            }
+            if ((match.index <= editor.selection.start.character && match.index + match[0].length > editor.selection.start.character) ||
+                    (match.index <= editor.selection.end.character && match.index + match[0].length > editor.selection.end.character)) {
+                const selectionStart = editor.selection.start.character - (match.index || 0);
+                const selectionEnd = editor.selection.end.character - (match.index || 0);
+                return { text: match[1], selectionStart, selectionEnd };
+            }
+        }    
     }
-    const line = document.lineAt(lineNumber);
-    const match = line.text.match(RE_MEDIA);
-    if (match) {
-        const selectionStart = allInSameLine ? start - (match.index || 0) : 0;
-        const selectionEnd = allInSameLine ? end - (match.index || 0) : 0;
-        return { text: match[1], selectionStart, selectionEnd };
-    }
-    return { text: '', selectionStart: 0, selectionEnd: 0 };
+    return {text: '', selectionStart: 0, selectionEnd: 0};
 }
